@@ -15,6 +15,13 @@
       "when": 1789145831949,
       "tag": "0001_updated_at_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789164204618,
+      "tag": "0002_google_accounts",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,38 @@
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+import { exchangeCode, ownerEmail } from '@/lib/google/oauth';
+
+function back(request: Request, params: Record<string, string>) {
+  const url = new URL('/', request.url);
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  return NextResponse.redirect(url);
+}
+
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+
+  const jar = await cookies();
+  const expectedState = jar.get('google_oauth_state')?.value;
+  jar.delete('google_oauth_state');
+
+  if (url.searchParams.get('error')) {
+    return back(request, { google: 'negado' });
+  }
+  // Guards against a forged callback being used to attach someone else's account.
+  if (!code || !state || state !== expectedState) {
+    return back(request, { google: 'estado_invalido' });
+  }
+
+  try {
+    const email = await exchangeCode(code);
+    if (email !== ownerEmail()) {
+      return back(request, { google: 'conta_nao_autorizada' });
+    }
+    return back(request, { google: 'conectado' });
+  } catch (error) {
+    console.error('Falha no callback do Google', error);
+    return back(request, { google: 'falhou' });
+  }
+}

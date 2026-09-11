@@ -55,6 +55,16 @@ export const cards = pgTable(
   (t) => [index('cards_list_position_idx').on(t.listId, t.position)],
 );
 
+/** Google OAuth tokens, one row per connected Google account. */
+export const googleAccounts = pgTable('google_accounts', {
+  email: text('email').primaryKey(),
+  accessToken: text('access_token').notNull(),
+  refreshToken: text('refresh_token'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  scope: text('scope').notNull().default(''),
+  ...timestamps,
+});
+
 export const boardsRelations = relations(boards, ({ many }) => ({
   lists: many(lists),
 }));
