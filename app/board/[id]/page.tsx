@@ -2,7 +2,7 @@ import Header from '@/components/Header';
 import KanbanBoard from '@/components/KanbanBoard';
 import { getBoards, getLists, getCards } from '@/lib/google-sheets';
 
-export default async function BoardPage({ params }: { params: { id: string } }) {
+export default async function BoardPage({ params }: PageProps<'/board/[id]'>) {
   const { id } = await params;
   
   // Fetch data directly for SSR

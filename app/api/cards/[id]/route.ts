@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { updateCard, deleteCard } from '@/lib/google-sheets';
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, ctx: RouteContext<'/api/cards/[id]'>) {
   try {
-    const { id } = await params;
+    const { id } = await ctx.params;
     const body = await request.json();
     
     // We assume client sends the full card object for simplicity
@@ -27,9 +27,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, ctx: RouteContext<'/api/cards/[id]'>) {
   try {
-    const { id } = await params;
+    const { id } = await ctx.params;
     await deleteCard(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {

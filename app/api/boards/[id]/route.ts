@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getBoards, getLists, getCards } from '@/lib/google-sheets';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, ctx: RouteContext<'/api/boards/[id]'>) {
   try {
-    // Note: In Next.js 15, params is a Promise, but let's assume it works synchronously or await it if needed.
-    // For standard Next 14/15, awaiting params is safe if it's a promise, or just use it.
-    const { id } = await params;
+    const { id } = await ctx.params;
 
     const boards = await getBoards();
     const board = boards.find((b) => b.id === id);

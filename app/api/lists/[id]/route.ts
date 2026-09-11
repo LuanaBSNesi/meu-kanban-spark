@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { updateList, deleteList } from '@/lib/google-sheets';
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: Request, ctx: RouteContext<'/api/lists/[id]'>) {
   try {
-    const { id } = await params;
+    const { id } = await ctx.params;
     const body = await request.json();
     
     // In a real app we'd fetch existing to merge, but we assume client sends full list object
@@ -25,9 +25,9 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+export async function DELETE(request: Request, ctx: RouteContext<'/api/lists/[id]'>) {
   try {
-    const { id } = await params;
+    const { id } = await ctx.params;
     await deleteList(id);
     return NextResponse.json({ success: true });
   } catch (error: any) {

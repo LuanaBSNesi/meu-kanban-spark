@@ -134,8 +134,7 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     // API Call
     try {
        // Need to find full card to patch since our API expects full card currently
-       let fullCard;
-       data.lists.forEach(l => l.cards.forEach(c => { if(c.id === cardId) fullCard = c; }));
+       const fullCard = data.lists.flatMap(l => l.cards).find(c => c.id === cardId);
        if (fullCard) {
           const patched = { ...fullCard, is_checked: isChecked };
           await fetch(`/api/cards/${cardId}`, {

@@ -3,10 +3,10 @@ import Link from 'next/link';
 
 // Use standard Node fetch to API to avoid direct DB calls from server components for simplicity in this demo,
 // but actually, we can directly call our lib/google-sheets to get Boards to avoid absolute URL issues in Next.js Server Components.
-import { getBoards } from '@/lib/google-sheets';
+import { getBoards, type Board } from '@/lib/google-sheets';
 
 export default async function Home() {
-  let boards = [];
+  let boards: Board[] = [];
   try {
     boards = await getBoards();
   } catch (error) {
