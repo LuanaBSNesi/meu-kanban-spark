@@ -110,10 +110,15 @@ export async function authorizedClient(email = ownerEmail()) {
   return client;
 }
 
+export const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+
 export async function connectedAccount() {
   const [account] = await db
     .select({ email: googleAccounts.email, scope: googleAccounts.scope })
     .from(googleAccounts)
     .where(eq(googleAccounts.email, ownerEmail()));
-  return account ?? null;
+  if (!account) return null;
+  // Google's consent screen lets the user tick scopes individually, so a
+  // connected account does not imply Drive was granted.
+  return { ...account, hasDrive: account.scope.includes(DRIVE_SCOPE) };
 }

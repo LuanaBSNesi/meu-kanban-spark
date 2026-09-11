@@ -3,7 +3,7 @@ import { Layers } from 'lucide-react';
 import { connectedAccount } from '@/lib/google/oauth';
 
 export default async function Header() {
-  let account: { email: string; scope: string } | null = null;
+  let account: Awaited<ReturnType<typeof connectedAccount>> = null;
   try {
     account = await connectedAccount();
   } catch {
@@ -25,9 +25,16 @@ export default async function Header() {
       </Link>
 
       {account ? (
-        <span className="text-xs text-ink-dark/60 flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-sage" aria-hidden />
-          Google conectado: {account.email}
+        <span className="text-xs text-ink-dark/60 flex items-center gap-3">
+          <span className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-sage" aria-hidden />
+            {account.email}
+          </span>
+          {!account.hasDrive && (
+            <a href="/api/auth/google" className="text-bronze underline">
+              Drive não autorizado — reconectar
+            </a>
+          )}
         </span>
       ) : (
         <a
