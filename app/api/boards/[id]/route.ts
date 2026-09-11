@@ -1,31 +1,37 @@
 import { NextResponse } from 'next/server';
-import { getBoards, getLists, getCards } from '@/lib/google-sheets';
+import { z } from 'zod';
+import { apiError, notFound } from '@/lib/api';
+import { deleteBoard, getBoardWithLists, updateBoard } from '@/lib/db/queries';
+
+const patchSchema = z.object({ title: z.string().trim().min(1) }).partial();
 
 export async function GET(request: Request, ctx: RouteContext<'/api/boards/[id]'>) {
   try {
     const { id } = await ctx.params;
+    const board = await getBoardWithLists(id);
+    return board ? NextResponse.json(board) : notFound('Quadro');
+  } catch (error) {
+    return apiError(error);
+  }
+}
 
-    const boards = await getBoards();
-    const board = boards.find((b) => b.id === id);
-    if (!board) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 });
-    }
+export async function PATCH(request: Request, ctx: RouteContext<'/api/boards/[id]'>) {
+  try {
+    const { id } = await ctx.params;
+    const patch = patchSchema.parse(await request.json());
+    const board = await updateBoard(id, patch);
+    return board ? NextResponse.json(board) : notFound('Quadro');
+  } catch (error) {
+    return apiError(error);
+  }
+}
 
-    const allLists = await getLists();
-    const allCards = await getCards();
-
-    const lists = allLists
-      .filter((l) => l.boardId === id)
-      .sort((a, b) => a.position - b.position)
-      .map((list) => ({
-        ...list,
-        cards: allCards
-          .filter((c) => c.listId === list.id)
-          .sort((a, b) => a.position - b.position),
-      }));
-
-    return NextResponse.json({ ...board, lists });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+export async function DELETE(request: Request, ctx: RouteContext<'/api/boards/[id]'>) {
+  try {
+    const { id } = await ctx.params;
+    const board = await deleteBoard(id);
+    return board ? NextResponse.json({ success: true }) : notFound('Quadro');
+  } catch (error) {
+    return apiError(error);
   }
 }

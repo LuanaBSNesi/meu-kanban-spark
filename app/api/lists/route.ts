@@ -1,24 +1,19 @@
 import { NextResponse } from 'next/server';
-import { createList } from '@/lib/google-sheets';
-import crypto from 'crypto';
+import { z } from 'zod';
+import { apiError } from '@/lib/api';
+import { createList } from '@/lib/db/queries';
 
+const createSchema = z.object({
+  boardId: z.uuid(),
+  title: z.string().trim().min(1),
+  position: z.number().optional(),
+});
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    if (!body.title || !body.boardId) {
-      return NextResponse.json({ error: 'Missing title or boardId' }, { status: 400 });
-    }
-    const newList = {
-      id: crypto.randomUUID(),
-      title: body.title,
-      position: body.position || 0,
-      boardId: body.boardId,
-    };
-
-    await createList(newList);
-    return NextResponse.json(newList);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { boardId, title, position } = createSchema.parse(await request.json());
+    return NextResponse.json(await createList(boardId, title, position), { status: 201 });
+  } catch (error) {
+    return apiError(error);
   }
 }

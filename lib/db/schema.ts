@@ -9,12 +9,12 @@ import {
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
+// updated_at is stamped by a database trigger, never by the app: the client
+// clock can drift behind the database clock, which would make a fresh update
+// look older than an earlier insert and hide the change from the poller.
 const timestamps = {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 };
 
 export const boards = pgTable('boards', {

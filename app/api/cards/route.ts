@@ -1,25 +1,21 @@
 import { NextResponse } from 'next/server';
-import { createCard } from '@/lib/google-sheets';
-import crypto from 'crypto';
+import { z } from 'zod';
+import { apiError } from '@/lib/api';
+import { createCard } from '@/lib/db/queries';
+
+const createSchema = z.object({
+  listId: z.uuid(),
+  title: z.string().trim().min(1),
+  description: z.string().optional(),
+  position: z.number().optional(),
+  dueAt: z.coerce.date().nullish(),
+});
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    if (!body.title || !body.listId) {
-      return NextResponse.json({ error: 'Missing title or listId' }, { status: 400 });
-    }
-    const newCard = {
-      id: crypto.randomUUID(),
-      title: body.title,
-      description: body.description || '',
-      is_checked: body.is_checked || false,
-      position: body.position || 0,
-      listId: body.listId,
-    };
-
-    await createCard(newCard);
-    return NextResponse.json(newCard);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { listId, ...values } = createSchema.parse(await request.json());
+    return NextResponse.json(await createCard(listId, values), { status: 201 });
+  } catch (error) {
+    return apiError(error);
   }
 }

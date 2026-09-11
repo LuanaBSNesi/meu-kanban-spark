@@ -1,36 +1,30 @@
 import { NextResponse } from 'next/server';
-import { updateList, deleteList } from '@/lib/google-sheets';
+import { z } from 'zod';
+import { apiError, notFound } from '@/lib/api';
+import { deleteList, updateList } from '@/lib/db/queries';
+
+const patchSchema = z
+  .object({ title: z.string().trim().min(1), position: z.number() })
+  .partial();
 
 export async function PATCH(request: Request, ctx: RouteContext<'/api/lists/[id]'>) {
   try {
     const { id } = await ctx.params;
-    const body = await request.json();
-    
-    // In a real app we'd fetch existing to merge, but we assume client sends full list object
-    if (!body.title || body.position === undefined || !body.boardId) {
-       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const updatedList = {
-      id,
-      title: body.title,
-      position: body.position,
-      boardId: body.boardId,
-    };
-
-    await updateList(updatedList);
-    return NextResponse.json(updatedList);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const patch = patchSchema.parse(await request.json());
+    const list = await updateList(id, patch);
+    return list ? NextResponse.json(list) : notFound('Lista');
+  } catch (error) {
+    return apiError(error);
   }
 }
 
+/** The cards go with it through the FK constraint, not through application code. */
 export async function DELETE(request: Request, ctx: RouteContext<'/api/lists/[id]'>) {
   try {
     const { id } = await ctx.params;
-    await deleteList(id);
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const list = await deleteList(id);
+    return list ? NextResponse.json({ success: true }) : notFound('Lista');
+  } catch (error) {
+    return apiError(error);
   }
 }

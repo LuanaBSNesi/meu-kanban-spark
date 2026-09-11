@@ -1,38 +1,37 @@
 import { NextResponse } from 'next/server';
-import { updateCard, deleteCard } from '@/lib/google-sheets';
+import { z } from 'zod';
+import { apiError, notFound } from '@/lib/api';
+import { deleteCard, updateCard } from '@/lib/db/queries';
+
+const patchSchema = z
+  .object({
+    title: z.string().trim().min(1),
+    description: z.string(),
+    isChecked: z.boolean(),
+    position: z.number(),
+    listId: z.uuid(),
+    dueAt: z.coerce.date().nullable(),
+    driveFileId: z.string().nullable(),
+  })
+  .partial();
 
 export async function PATCH(request: Request, ctx: RouteContext<'/api/cards/[id]'>) {
   try {
     const { id } = await ctx.params;
-    const body = await request.json();
-    
-    // We assume client sends the full card object for simplicity
-    if (!body.title || body.position === undefined || !body.listId) {
-       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const updatedCard = {
-      id,
-      title: body.title,
-      description: body.description || '',
-      is_checked: body.is_checked ?? false,
-      position: body.position,
-      listId: body.listId,
-    };
-
-    await updateCard(updatedCard);
-    return NextResponse.json(updatedCard);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const patch = patchSchema.parse(await request.json());
+    const card = await updateCard(id, patch);
+    return card ? NextResponse.json(card) : notFound('Card');
+  } catch (error) {
+    return apiError(error);
   }
 }
 
 export async function DELETE(request: Request, ctx: RouteContext<'/api/cards/[id]'>) {
   try {
     const { id } = await ctx.params;
-    await deleteCard(id);
-    return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const card = await deleteCard(id);
+    return card ? NextResponse.json({ success: true }) : notFound('Card');
+  } catch (error) {
+    return apiError(error);
   }
 }
