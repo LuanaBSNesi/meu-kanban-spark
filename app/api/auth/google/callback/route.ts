@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { exchangeCode, ownerEmail } from '@/lib/google/oauth';
+import { SESSION_COOKIE, SESSION_MAX_AGE, createSession } from '@/lib/session';
 
 function back(request: Request, params: Record<string, string>) {
   const url = new URL('/', request.url);
@@ -30,6 +31,15 @@ export async function GET(request: Request) {
     if (email !== ownerEmail()) {
       return back(request, { google: 'conta_nao_autorizada' });
     }
+
+    jar.set(SESSION_COOKIE, await createSession(email), {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: SESSION_MAX_AGE,
+      secure: process.env.NODE_ENV === 'production',
+    });
+
     return back(request, { google: 'conectado' });
   } catch (error) {
     console.error('Falha no callback do Google', error);

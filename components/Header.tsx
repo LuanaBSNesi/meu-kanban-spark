@@ -35,6 +35,11 @@ export default async function Header() {
               Drive não autorizado — reconectar
             </a>
           )}
+          <form action="/api/auth/logout" method="post">
+            <button type="submit" className="underline hover:text-ink-dark">
+              sair
+            </button>
+          </form>
         </span>
       ) : (
         <a
