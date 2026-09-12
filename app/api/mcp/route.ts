@@ -212,4 +212,27 @@ const authenticated = withMcpAuth(
   },
 );
 
-export { authenticated as GET, authenticated as POST, authenticated as DELETE };
+/**
+ * Spark probes the endpoint to confirm it is a real MCP server before it will
+ * offer to connect, and that probe carries no token. Refusing the handshake
+ * made it reject the server outright ("este servidor MCP ainda nao e aceito").
+ *
+ * So the handshake is open and every tool invocation stays behind the owner
+ * check: `tools/call` is the only method that reads or writes the board, and it
+ * is the one method this lets through only when authenticated. An anonymous
+ * caller learns the server's name and the shape of its tools, never any data.
+ */
+async function route(request: Request) {
+  if (request.method !== 'POST') return authenticated(request);
+
+  let method: unknown;
+  try {
+    ({ method } = await request.clone().json());
+  } catch {
+    return authenticated(request);
+  }
+
+  return method === 'tools/call' ? authenticated(request) : handler(request);
+}
+
+export { route as GET, route as POST, route as DELETE };
