@@ -223,7 +223,9 @@ const authenticated = withMcpAuth(
  * caller learns the server's name and the shape of its tools, never any data.
  */
 async function route(request: Request) {
-  if (request.method !== 'POST') return authenticated(request);
+  // HEAD and GET are liveness and stream-open checks that carry no token;
+  // answering them with 401 was enough for Spark to reject the server.
+  if (request.method !== 'POST') return handler(request);
 
   let method: unknown;
   try {
