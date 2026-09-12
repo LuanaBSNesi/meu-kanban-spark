@@ -205,7 +205,11 @@ const authenticated = withMcpAuth(
       return undefined;
     }
   },
-  { required: true },
+  {
+    required: true,
+    // Must match the RFC 9728 location a client derives from the resource path.
+    resourceMetadataPath: '/.well-known/oauth-protected-resource/api/mcp',
+  },
 );
 
 export { authenticated as GET, authenticated as POST, authenticated as DELETE };
