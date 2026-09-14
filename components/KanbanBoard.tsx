@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { Plus, Trash2 } from 'lucide-react';
 import CardItem from './CardItem';
 import type { BoardData, CardData, ListData } from './types';
+import { useBoardSync } from './useBoardSync';
 
 const POSITION_GAP = 1024;
 
@@ -33,12 +34,20 @@ function listPositionAt(siblings: ListData[], index: number) {
 export default function KanbanBoard({ initialData }: { initialData: BoardData }) {
   const [data, setData] = useState<BoardData>(initialData);
   const [error, setError] = useState<string | null>(null);
+  const inFlight = useRef(0);
+
+  useBoardSync(
+    initialData.id,
+    useCallback((board: BoardData) => setData(board), []),
+    useCallback(() => inFlight.current > 0, []),
+  );
 
   /** Applies an optimistic change and rolls it back if the server rejects it. */
   async function commit(next: BoardData, request: () => Promise<Response>, whatFailed: string) {
     const snapshot = data;
     setData(next);
     setError(null);
+    inFlight.current++;
     try {
       const response = await request();
       if (!response.ok) throw new Error(await response.text());
@@ -48,6 +57,8 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
       setData(snapshot);
       setError(whatFailed);
       return null;
+    } finally {
+      inFlight.current--;
     }
   }
 
@@ -128,6 +139,7 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     if (!title) return;
 
     setError(null);
+    inFlight.current++;
     try {
       const response = await fetch('/api/lists', {
         method: 'POST',
@@ -140,6 +152,8 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     } catch (cause) {
       console.error(cause);
       setError('Não foi possível criar a lista.');
+    } finally {
+      inFlight.current--;
     }
   }
 
@@ -148,6 +162,7 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     if (!title) return;
 
     setError(null);
+    inFlight.current++;
     try {
       const response = await fetch('/api/cards', {
         method: 'POST',
@@ -165,6 +180,8 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     } catch (cause) {
       console.error(cause);
       setError('Não foi possível criar a tarefa.');
+    } finally {
+      inFlight.current--;
     }
   }
 
