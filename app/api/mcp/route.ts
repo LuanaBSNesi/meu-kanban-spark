@@ -212,4 +212,35 @@ const authenticated = withMcpAuth(
   },
 );
 
-export { authenticated as GET, authenticated as POST, authenticated as DELETE };
+/**
+ * A browser-based client reads none of this cross-origin without CORS. The
+ * exposed headers matter most: WWW-Authenticate is how a client discovers it
+ * must run OAuth, and mcp-session-id is how it keeps the session — both are
+ * invisible to scripts unless named here.
+ */
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers':
+    'Content-Type, Authorization, mcp-session-id, mcp-protocol-version, last-event-id',
+  'Access-Control-Expose-Headers': 'WWW-Authenticate, mcp-session-id, mcp-protocol-version',
+  'Access-Control-Max-Age': '86400',
+};
+
+async function route(request: Request) {
+  const response = await authenticated(request);
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(CORS)) headers.set(key, value);
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
+export function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS });
+}
+
+export { route as GET, route as POST, route as DELETE };
