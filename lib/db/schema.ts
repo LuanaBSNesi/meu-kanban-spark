@@ -6,6 +6,7 @@ import {
   doublePrecision,
   timestamp,
   index,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
@@ -64,6 +65,45 @@ export const googleAccounts = pgTable('google_accounts', {
   scope: text('scope').notNull().default(''),
   ...timestamps,
 });
+
+/**
+ * The app is its own OAuth authorization server. Gemini Spark only accepts an
+ * MCP whose authorization server is the MCP itself, so pointing at Google was
+ * refused; Google still proves who the user is, behind these endpoints.
+ */
+export const oauthClients = pgTable('oauth_clients', {
+  clientId: text('client_id').primaryKey(),
+  clientSecret: text('client_secret'),
+  clientName: text('client_name').notNull().default(''),
+  redirectUris: jsonb('redirect_uris').$type<string[]>().notNull(),
+  ...timestamps,
+});
+
+export const oauthCodes = pgTable('oauth_codes', {
+  code: text('code').primaryKey(),
+  clientId: text('client_id').notNull(),
+  redirectUri: text('redirect_uri').notNull(),
+  codeChallenge: text('code_challenge'),
+  codeChallengeMethod: text('code_challenge_method'),
+  scope: text('scope').notNull().default(''),
+  userEmail: text('user_email').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const oauthTokens = pgTable(
+  'oauth_tokens',
+  {
+    token: text('token').primaryKey(),
+    refreshToken: text('refresh_token'),
+    clientId: text('client_id').notNull(),
+    userEmail: text('user_email').notNull(),
+    scope: text('scope').notNull().default(''),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('oauth_tokens_refresh_idx').on(t.refreshToken)],
+);
 
 export const boardsRelations = relations(boards, ({ many }) => ({
   lists: many(lists),

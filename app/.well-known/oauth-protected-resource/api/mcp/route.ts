@@ -14,10 +14,15 @@ import {
  * "Missing required parameter: scope".
  */
 export function GET(request: Request) {
+  const origin = getPublicOrigin(request);
+
   const metadata = generateProtectedResourceMetadata({
-    authServerUrls: ['https://accounts.google.com'],
-    resourceUrl: `${getPublicOrigin(request)}/api/mcp`,
-    additionalMetadata: { scopes_supported: ['openid', 'email'] },
+    // This app, not Google. Spark refuses an MCP whose authorization server
+    // lives on someone else's domain; Google still authenticates the user,
+    // behind our /oauth endpoints.
+    authServerUrls: [origin],
+    resourceUrl: `${origin}/api/mcp`,
+    additionalMetadata: { scopes_supported: ['kanban'] },
   });
 
   return Response.json(metadata, {

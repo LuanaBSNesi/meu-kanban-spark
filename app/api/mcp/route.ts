@@ -14,7 +14,8 @@ import {
   updateCard,
   updateList,
 } from '@/lib/db/queries';
-import { emailForAccessToken, ownerEmail } from '@/lib/google/oauth';
+import { ownerEmail } from '@/lib/google/oauth';
+import { resolveToken } from '@/lib/oauth/server';
 
 function ok(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -184,22 +185,22 @@ const handler = createMcpHandler((server) => {
 });
 
 /**
- * The endpoint is public on the internet, so every call must prove it belongs
- * to the owner. Spark only speaks OAuth, and Google is already the identity
- * provider for Drive, so the same client secures both.
+ * Tokens are minted by this app's own /oauth endpoints, not by Google. Google
+ * still proves who the user is during authorization; what the agent carries
+ * afterwards is ours, which is what lets Spark accept the server at all.
  */
 const authenticated = withMcpAuth(
   handler,
   async (_req, bearerToken) => {
     if (!bearerToken) return undefined;
     try {
-      const email = await emailForAccessToken(bearerToken);
-      if (email !== ownerEmail()) return undefined;
+      const granted = await resolveToken(bearerToken);
+      if (!granted || granted.userEmail !== ownerEmail()) return undefined;
       return {
         token: bearerToken,
         scopes: ['kanban'],
-        clientId: email,
-        extra: { email },
+        clientId: granted.clientId,
+        extra: { email: granted.userEmail },
       };
     } catch {
       return undefined;

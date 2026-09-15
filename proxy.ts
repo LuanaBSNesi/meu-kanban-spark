@@ -5,7 +5,11 @@ import { SESSION_COOKIE, readSession } from '@/lib/session';
  * Everything is private except the login flow and the MCP endpoint, which
  * carries its own Google bearer authentication for Spark and Claude.
  */
-const PUBLIC_PREFIXES = ['/login', '/api/auth/', '/api/mcp', '/.well-known/'];
+// /oauth/* is listed here because those routes do their own checking:
+// /oauth/authorize reads the session itself and sends the browser through
+// Google when there is none, which the generic /login redirect would break by
+// losing the return path.
+const PUBLIC_PREFIXES = ['/login', '/api/auth/', '/api/mcp', '/.well-known/', '/oauth/'];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

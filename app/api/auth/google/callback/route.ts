@@ -40,6 +40,12 @@ export async function GET(request: Request) {
       secure: process.env.NODE_ENV === 'production',
     });
 
+    const next = jar.get('google_oauth_next')?.value;
+    jar.delete('google_oauth_next');
+    if (next?.startsWith('/') && !next.startsWith('//')) {
+      return NextResponse.redirect(new URL(next, request.url));
+    }
+
     return back(request, { google: 'conectado' });
   } catch (error) {
     console.error('Falha no callback do Google', error);
