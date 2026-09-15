@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { Plus, Trash2 } from 'lucide-react';
 import CardItem from './CardItem';
+import CardDetail from './CardDetail';
 import { EditableText, InlineComposer } from './InlineInput';
 import type { BoardData, CardData, ListData } from './types';
 import { useBoardSync } from './useBoardSync';
@@ -38,6 +39,7 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
   const [error, setError] = useState<string | null>(null);
   const [composingIn, setComposingIn] = useState<string | null>(null);
   const [addingList, setAddingList] = useState(false);
+  const [openCardId, setOpenCardId] = useState<string | null>(null);
   const inFlight = useRef(0);
   const router = useRouter();
 
@@ -193,6 +195,18 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     );
   }
 
+  async function handleUpdateCard(cardId: string, values: Partial<CardData>) {
+    const lists = data.lists.map((list) => ({
+      ...list,
+      cards: list.cards.map((c) => (c.id === cardId ? { ...c, ...values } : c)),
+    }));
+    await commit(
+      { ...data, lists },
+      patch(`/api/cards/${cardId}`, values),
+      'Não foi possível salvar a tarefa.',
+    );
+  }
+
   async function handleRenameList(listId: string, title: string) {
     const lists = data.lists.map((l) => (l.id === listId ? { ...l, title } : l));
     await commit(
@@ -226,6 +240,11 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
       inFlight.current--;
     }
   }
+
+  // Read from state, not captured at open time, so the sync keeps it current.
+  const openCard = openCardId
+    ? data.lists.flatMap((l) => l.cards).find((c) => c.id === openCardId)
+    : undefined;
 
   async function handleDeleteCard(cardId: string) {
     const lists = data.lists.map((list) => ({
@@ -323,6 +342,7 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
                                 index={index}
                                 onCheckToggle={handleCheckToggle}
                                 onDelete={handleDeleteCard}
+                                onOpen={setOpenCardId}
                               />
                             ))}
                             {provided.placeholder}
@@ -373,6 +393,15 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
           )}
         </Droppable>
       </DragDropContext>
+
+      {openCard && (
+        <CardDetail
+          card={openCard}
+          onClose={() => setOpenCardId(null)}
+          onSave={(values) => handleUpdateCard(openCard.id, values)}
+          onDelete={() => handleDeleteCard(openCard.id)}
+        />
+      )}
     </>
   );
 }

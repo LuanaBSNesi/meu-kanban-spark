@@ -1,7 +1,7 @@
 'use client';
 
 import { Draggable } from '@hello-pangea/dnd';
-import { X } from 'lucide-react';
+import { CalendarDays, Maximize2, X } from 'lucide-react';
 import type { CardData } from './types';
 
 interface CardItemProps {
@@ -9,9 +9,18 @@ interface CardItemProps {
   index: number;
   onCheckToggle: (cardId: string, isChecked: boolean) => void;
   onDelete: (cardId: string) => void;
+  onOpen: (cardId: string) => void;
 }
 
-export default function CardItem({ card, index, onCheckToggle, onDelete }: CardItemProps) {
+function formatDue(value: Date | string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+export default function CardItem({ card, index, onCheckToggle, onDelete, onOpen }: CardItemProps) {
+  const due = card.dueAt ? formatDue(card.dueAt) : null;
+  const overdue = card.dueAt ? new Date(card.dueAt).getTime() < Date.now() : false;
   return (
     <Draggable draggableId={card.id} index={index}>
       {(provided, snapshot) => (
@@ -24,16 +33,28 @@ export default function CardItem({ card, index, onCheckToggle, onDelete }: CardI
             ${snapshot.isDragging ? 'shadow-md rotate-2 scale-105 border-sage z-50' : 'mb-3'}`}
           style={provided.draggableProps.style}
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(card.id);
-            }}
-            className="absolute top-2 right-2 text-ink-dark/30 hover:text-red-500 opacity-0 group-hover/card:opacity-100 transition-opacity"
-            title="Excluir tarefa"
-          >
-            <X size={16} />
-          </button>
+          <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpen(card.id);
+              }}
+              className="text-ink-dark/30 hover:text-bronze"
+              title="Abrir detalhes"
+            >
+              <Maximize2 size={15} />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(card.id);
+              }}
+              className="text-ink-dark/30 hover:text-red-500"
+              title="Excluir tarefa"
+            >
+              <X size={16} />
+            </button>
+          </div>
 
           <div className="flex items-start gap-3 pr-4">
             <input
@@ -50,6 +71,18 @@ export default function CardItem({ card, index, onCheckToggle, onDelete }: CardI
               </h4>
               {card.description && (
                 <p className="text-sm text-ink-dark/70 mt-2 line-clamp-3">{card.description}</p>
+              )}
+              {due && (
+                <span
+                  className={`mt-2 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs ${
+                    overdue && !card.isChecked
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-sage-light/50 text-ink-dark/70'
+                  }`}
+                >
+                  <CalendarDays size={12} />
+                  {due}
+                </span>
               )}
             </div>
           </div>
