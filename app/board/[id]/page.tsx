@@ -12,10 +12,7 @@ export default async function BoardPage({ params }: PageProps<'/board/[id]'>) {
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden">
       <Header />
-      <div className="px-8 pt-6 pb-2 shrink-0">
-        <h2 className="text-2xl font-semibold text-ink-dark">{board.title}</h2>
-      </div>
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-hidden flex flex-col">
         <KanbanBoard initialData={board} />
       </main>
     </div>

@@ -208,6 +208,12 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
 
   return (
     <>
+      {/* Rendered here, not in the page, so a rename by an agent shows up
+          through the same sync that refreshes lists and cards. */}
+      <div className="px-8 pt-6 pb-2 shrink-0">
+        <h2 className="text-2xl font-semibold text-ink-dark">{data.title}</h2>
+      </div>
+
       {error && (
         <div
           role="alert"
