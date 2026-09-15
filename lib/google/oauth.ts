@@ -19,16 +19,28 @@ export function ownerEmail() {
   return required('OWNER_EMAIL').toLowerCase();
 }
 
-export function oauthClient() {
+/**
+ * Derived from the request rather than pinned to an env var: the app answers on
+ * several hosts (localhost, the short vercel.app alias, the long one), and
+ * Google rejects the exchange when the redirect does not match the host the
+ * user actually browsed.
+ */
+export function redirectUriFor(request: Request) {
+  return `${new URL(request.url).origin}/api/auth/google/callback`;
+}
+
+export function oauthClient(redirectUri?: string) {
   return new google.auth.OAuth2(
     required('GOOGLE_CLIENT_ID'),
     required('GOOGLE_CLIENT_SECRET'),
-    process.env.GOOGLE_REDIRECT_URI ?? 'http://localhost:3000/api/auth/google/callback',
+    redirectUri ??
+      process.env.GOOGLE_REDIRECT_URI ??
+      'http://localhost:3000/api/auth/google/callback',
   );
 }
 
-export function consentUrl(state: string) {
-  return oauthClient().generateAuthUrl({
+export function consentUrl(state: string, redirectUri?: string) {
+  return oauthClient(redirectUri).generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent', // force a refresh_token even on a repeat authorisation
     scope: GOOGLE_SCOPES,
@@ -37,8 +49,8 @@ export function consentUrl(state: string) {
   });
 }
 
-export async function exchangeCode(code: string) {
-  const client = oauthClient();
+export async function exchangeCode(code: string, redirectUri?: string) {
+  const client = oauthClient(redirectUri);
   const { tokens } = await client.getToken(code);
   if (!tokens.access_token) throw new Error('Google nao devolveu access_token');
 

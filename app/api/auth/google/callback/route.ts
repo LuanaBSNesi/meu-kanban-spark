@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { exchangeCode, ownerEmail } from '@/lib/google/oauth';
+import { exchangeCode, ownerEmail, redirectUriFor } from '@/lib/google/oauth';
 import { SESSION_COOKIE, SESSION_MAX_AGE, createSession } from '@/lib/session';
 
 function back(request: Request, params: Record<string, string>) {
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const email = await exchangeCode(code);
+    const email = await exchangeCode(code, redirectUriFor(request));
     if (email !== ownerEmail()) {
       return back(request, { google: 'conta_nao_autorizada' });
     }

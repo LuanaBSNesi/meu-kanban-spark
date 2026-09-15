@@ -2,9 +2,9 @@ import { randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { apiError } from '@/lib/api';
-import { consentUrl } from '@/lib/google/oauth';
+import { consentUrl, redirectUriFor } from '@/lib/google/oauth';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const state = randomBytes(16).toString('hex');
     const jar = await cookies();
@@ -15,7 +15,7 @@ export async function GET() {
       maxAge: 600,
       secure: process.env.NODE_ENV === 'production',
     });
-    return NextResponse.redirect(consentUrl(state));
+    return NextResponse.redirect(consentUrl(state, redirectUriFor(request)));
   } catch (error) {
     return apiError(error);
   }
