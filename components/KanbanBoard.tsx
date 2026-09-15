@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd';
 import { Plus, Trash2 } from 'lucide-react';
 import CardItem from './CardItem';
+import { EditableText, InlineComposer } from './InlineInput';
 import type { BoardData, CardData, ListData } from './types';
 import { useBoardSync } from './useBoardSync';
 
@@ -34,7 +36,10 @@ function listPositionAt(siblings: ListData[], index: number) {
 export default function KanbanBoard({ initialData }: { initialData: BoardData }) {
   const [data, setData] = useState<BoardData>(initialData);
   const [error, setError] = useState<string | null>(null);
+  const [composingIn, setComposingIn] = useState<string | null>(null);
+  const [addingList, setAddingList] = useState(false);
   const inFlight = useRef(0);
+  const router = useRouter();
 
   useBoardSync(
     initialData.id,
@@ -134,10 +139,7 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     );
   }
 
-  async function handleAddList() {
-    const title = window.prompt('Nome da nova lista:')?.trim();
-    if (!title) return;
-
+  async function handleAddList(title: string) {
     setError(null);
     inFlight.current++;
     try {
@@ -157,10 +159,7 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     }
   }
 
-  async function handleAddCard(listId: string) {
-    const title = window.prompt('Nome da nova tarefa:')?.trim();
-    if (!title) return;
-
+  async function handleAddCard(listId: string, title: string) {
     setError(null);
     inFlight.current++;
     try {
@@ -194,6 +193,40 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     );
   }
 
+  async function handleRenameList(listId: string, title: string) {
+    const lists = data.lists.map((l) => (l.id === listId ? { ...l, title } : l));
+    await commit(
+      { ...data, lists },
+      patch(`/api/lists/${listId}`, { title }),
+      'Não foi possível renomear a lista.',
+    );
+  }
+
+  async function handleRenameBoard(title: string) {
+    await commit(
+      { ...data, title },
+      patch(`/api/boards/${data.id}`, { title }),
+      'Não foi possível renomear o quadro.',
+    );
+  }
+
+  async function handleDeleteBoard() {
+    if (!window.confirm(`Excluir o quadro "${data.title}"? Todas as listas e tarefas irão junto.`))
+      return;
+
+    inFlight.current++;
+    try {
+      const response = await fetch(`/api/boards/${data.id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error(await response.text());
+      router.push('/');
+    } catch (cause) {
+      console.error(cause);
+      setError('Não foi possível excluir o quadro.');
+    } finally {
+      inFlight.current--;
+    }
+  }
+
   async function handleDeleteCard(cardId: string) {
     const lists = data.lists.map((list) => ({
       ...list,
@@ -210,8 +243,21 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
     <>
       {/* Rendered here, not in the page, so a rename by an agent shows up
           through the same sync that refreshes lists and cards. */}
-      <div className="px-8 pt-6 pb-2 shrink-0">
-        <h2 className="text-2xl font-semibold text-ink-dark">{data.title}</h2>
+      <div className="px-8 pt-6 pb-2 shrink-0 flex items-center justify-between gap-4 group/board">
+        <EditableText
+          value={data.title}
+          onSave={handleRenameBoard}
+          label="quadro"
+          className="text-2xl font-semibold text-ink-dark hover:text-bronze transition-colors"
+          inputClassName="text-2xl font-semibold text-ink-dark"
+        />
+        <button
+          onClick={handleDeleteBoard}
+          title="Excluir quadro"
+          className="text-ink-dark/30 hover:text-red-500 opacity-0 group-hover/board:opacity-100 transition-opacity shrink-0"
+        >
+          <Trash2 size={18} />
+        </button>
       </div>
 
       {error && (
@@ -244,11 +290,14 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
                         ${snapshot.isDragging ? 'shadow-xl rotate-1 scale-105 z-40' : ''}`}
                     >
                       <div className="flex items-center justify-between mb-4 px-2 py-1 group/list">
-                        <div
-                          {...provided.dragHandleProps}
-                          className="font-semibold text-ink-dark cursor-grab active:cursor-grabbing flex-1"
-                        >
-                          {list.title}
+                        <div {...provided.dragHandleProps} className="flex-1 cursor-grab active:cursor-grabbing">
+                          <EditableText
+                            value={list.title}
+                            onSave={(title) => handleRenameList(list.id, title)}
+                            label="lista"
+                            className="font-semibold text-ink-dark hover:text-bronze transition-colors w-full"
+                            inputClassName="font-semibold text-ink-dark w-full"
+                          />
                         </div>
                         <button
                           onClick={() => handleDeleteList(list.id)}
@@ -281,26 +330,45 @@ export default function KanbanBoard({ initialData }: { initialData: BoardData })
                         )}
                       </Droppable>
 
-                      <button
-                        onClick={() => handleAddCard(list.id)}
-                        className="mt-4 flex items-center justify-center gap-2 text-ink-dark/70 hover:text-ink-dark hover:bg-creme/50 py-2 rounded-md transition-colors w-full"
-                      >
-                        <Plus size={18} />
-                        <span className="font-medium text-sm">Adicionar tarefa</span>
-                      </button>
+                      {composingIn === list.id ? (
+                        <InlineComposer
+                          className="mt-3"
+                          placeholder="Título da tarefa. Enter salva, Esc fecha."
+                          onSubmit={(title) => handleAddCard(list.id, title)}
+                          onClose={() => setComposingIn(null)}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => setComposingIn(list.id)}
+                          className="mt-4 flex items-center justify-center gap-2 text-ink-dark/70 hover:text-ink-dark hover:bg-creme/50 py-2 rounded-md transition-colors w-full"
+                        >
+                          <Plus size={18} />
+                          <span className="font-medium text-sm">Adicionar tarefa</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </Draggable>
               ))}
               {provided.placeholder}
 
-              <button
-                onClick={handleAddList}
-                className="bg-sage-light/50 hover:bg-sage-light text-ink-dark w-80 shrink-0 rounded-xl p-4 flex items-center gap-2 transition-colors"
-              >
-                <Plus size={20} />
-                <span className="font-semibold">Adicionar lista</span>
-              </button>
+              {addingList ? (
+                <div className="bg-sage-light w-80 shrink-0 rounded-xl p-4">
+                  <InlineComposer
+                    placeholder="Nome da lista. Enter salva, Esc fecha."
+                    onSubmit={handleAddList}
+                    onClose={() => setAddingList(false)}
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingList(true)}
+                  className="bg-sage-light/50 hover:bg-sage-light text-ink-dark w-80 shrink-0 rounded-xl p-4 flex items-center gap-2 transition-colors"
+                >
+                  <Plus size={20} />
+                  <span className="font-semibold">Adicionar lista</span>
+                </button>
+              )}
             </div>
           )}
         </Droppable>
